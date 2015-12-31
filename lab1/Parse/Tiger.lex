@@ -1,0 +1,133 @@
+package Parse;
+import ErrorMsg.ErrorMsg;
+
+%% 
+
+%implements Lexer
+%function nextToken
+%type java_cup.runtime.Symbol
+%char
+%state COMMENT
+%state STRING
+%state FORMAT_STRING
+
+
+%{
+private void newline() {
+  errorMsg.newline(yychar);
+}
+
+private void err(int pos, String s) {
+  errorMsg.error(pos,s);
+}
+
+private void err(String s) {
+  err(yychar,s);
+}
+
+private java_cup.runtime.Symbol tok(int kind) {
+    return tok(kind, null);
+}
+
+private java_cup.runtime.Symbol tok(int kind, Object value) {
+    return new java_cup.runtime.Symbol(kind, yychar, yychar+yylength(), value);
+}
+
+private ErrorMsg errorMsg;
+
+Yylex(java.io.InputStream s, ErrorMsg e) {
+  this(s);
+  errorMsg=e;
+}
+private int com_count=0;
+private String  s="";
+%}
+
+
+%eofval{
+	{
+	 return tok(sym.EOF, null);
+        }
+%eofval}       
+
+
+%%
+<YYINITIAL>" "	{}
+<YYINITIAL>\n	{newline();}
+<YYINITIAL>","	{return tok(sym.COMMA, null);}
+<YYINITIAL>":"	{return tok(sym.COLON, null);}
+<YYINITIAL>"/"	{return tok(sym.DIVIDE, null);}
+<YYINITIAL>">"	{return tok(sym.GT, null);}
+<YYINITIAL>">="	{return tok(sym.GE, null);}
+<YYINITIAL>"<"	{return tok(sym.LT, null);}
+<YYINITIAL>"-"	{return tok(sym.MINUS, null);}
+<YYINITIAL>"*"	{return tok(sym.TIMES, null);}
+<YYINITIAL>"<="	{return tok(sym.LE, null);}
+<YYINITIAL>":="	{return tok(sym.ASSIGN, null);}
+<YYINITIAL>"."	{return tok(sym.DOT, null);}
+<YYINITIAL>"("	{return tok(sym.LPAREN, null);}
+<YYINITIAL>")"	{return tok(sym.RPAREN, null);}
+<YYINITIAL>";"	{return tok(sym.SEMICOLON, null);}
+<YYINITIAL>"["	{return tok(sym.LBRACK, null);}
+<YYINITIAL>"]"	{return tok(sym.RBRACK, null);}
+<YYINITIAL>"<>"	{return tok(sym.NEQ, null);}
+<YYINITIAL>"&"	{return tok(sym.AND, null);}
+<YYINITIAL>"+"	{return tok(sym.PLUS, null);}
+<YYINITIAL>"{"	{return tok(sym.LBRACE, null);}
+<YYINITIAL>"}"	{return tok(sym.RBRACE, null);}
+<YYINITIAL>"="	{return tok(sym.EQ, null);}
+<YYINITIAL>"|"	{return tok(sym.OR, null);}
+
+<YYINITIAL>[0-9]+	{String s=yytext();
+			int x=Integer.parseInt(s);
+			return tok(sym.INT, x);}	
+
+<YYINITIAL>"var"	{return tok(sym.VAR, null);}
+<YYINITIAL>"function"	{return tok(sym.FUNCTION, null);}
+<YYINITIAL>"if"		{return tok(sym.IF, null);}
+<YYINITIAL>"while"	{return tok(sym.WHILE, null);}
+<YYINITIAL>"let"	{return tok(sym.LET, null);}
+<YYINITIAL>"then"	{return tok(sym.THEN, null);}
+<YYINITIAL>"break"	{return tok(sym.BREAK, null);}
+<YYINITIAL>"array"	{return tok(sym.ARRAY, null);}
+<YYINITIAL>"for"	{return tok(sym.FOR, null);}
+<YYINITIAL>"to"		{return tok(sym.TO, null);}
+<YYINITIAL>"else" 	{return tok(sym.ELSE, null);}
+<YYINITIAL>"nil"	{return tok(sym.NIL, null);}
+<YYINITIAL>"do"		{return tok(sym.DO, null);}
+<YYINITIAL>"in"		{return tok(sym.IN, null);}
+<YYINITIAL>"end"	{return tok(sym.END, null);}
+<YYINITIAL>"else"	{return tok(sym.ELSE, null);}
+<YYINITIAL>"of"		{return tok(sym.OF, null);}
+<YYINITIAL>"type"	{return tok(sym.TYPE, null);}
+
+<YYINITIAL>[A-Za-z]([A-Za-z]|[0-9]|"_")*	{return tok(sym.ID, yytext());}
+
+
+<YYINITIAL>"/*"	        {yybegin(COMMENT); com_count=com_count+1;}
+<COMMENT>"/*"	{com_count=com_count+1;}
+<COMMENT>\n	{newline();}
+<COMMENT>"*/"	{com_count=com_count-1;
+		if(com_count==0){
+			yybegin(YYINITIAL);
+			}
+		}	
+<COMMENT>. {}
+
+<YYINITIAL>\"		{yybegin(STRING); s="";}
+<STRING>[A-Za-z0-9" ""?""!""@""#""$""%""^""&""*""("")""-""_""=""+""|""/""<"">"","".""`""~""'"]+	{s=s+yytext();}
+<STRING>\\n		{s=s+'\n'; }
+<STRING>\\t		{s=s+'\t';}
+
+<STRING>\\\\		{s=s+'\\';}
+<STRING>\\[0-9][0-9][0-9]	{
+		
+			 int x=Integer.parseInt(yytext().substring(1));
+			 s=s+Character.toString((char) x);}
+<STRING>\\\n	{yybegin(FORMAT_STRING);}
+<FORMAT_STRING>\n	{newline();}
+<FORMAT_STRING>[\ \t\f\r]	{}
+<FORMAT_STRING>\\	{yybegin(STRING);}
+<STRING>\\\"		{s=s+'\"';}
+<STRING> \"             {yybegin(YYINITIAL); return tok(sym.STRING,s);}
+. { err("Illegal character: " + yytext()); }
